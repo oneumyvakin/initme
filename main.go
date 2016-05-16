@@ -1,4 +1,4 @@
-package main
+package initme
 
 import (
     "os/exec"
@@ -6,13 +6,17 @@ import (
     "path/filepath"
     "fmt"
     "runtime"
+
+    "golang.org/x/sys/windows/svc"
+	"log"
+	"os"
 )
 
 const (
     initbin string = "/sbin/init"
 )
 
-func isSysV() bool {
+func IsSysV() bool {
     hcmd := exec.Command(initbin, "--help")
     _, herr := hcmd.CombinedOutput()
 
@@ -26,7 +30,7 @@ func isSysV() bool {
     return false
 }
 
-func isUpstart() bool {
+func IsUpstart() bool {
     vcmd := exec.Command(initbin, "--version")
     output, verr := vcmd.CombinedOutput()
 
@@ -37,7 +41,7 @@ func isUpstart() bool {
     return strings.Contains(string(output), "upstart")
 }
 
-func isSystemd() bool {
+func IsSystemd() bool {
     evaled, err := filepath.EvalSymlinks(initbin)
     if err != nil {
         return false
@@ -49,20 +53,38 @@ func isSystemd() bool {
 func register() bool {
     if runtime.GOOS == "windows" {
         fmt.Println("windows")
-        s := WindowsService{
+
+		s := WindowsService{
             Name: "MyTest4",
-            BinPath: "\"M:\\Joomla\\GoPath\\src\\SlackService\\slackservice.exe\" --config=\"M:\\Joomla\\GoPath\\src\\SlackService\\config.json\"",
+
+            BinPath: "\"C:\\Users\\oneumyvakin.SWSOFT\\Desktop\\GoPath\\src\\slackservice\\slackservice.exe\" --config \"C:\\Users\\oneumyvakin.SWSOFT\\Desktop\\GoPath\\src\\slackservice\\config.json\"",
         }
-        //fmt.Println(s.Delete())
-        fmt.Println(s.Register())
+
+		for _, arg := range os.Args {
+			if arg == "--install" {
+        		fmt.Println(s.Register())
+			}
+		}
+
+		isIntSess, err := svc.IsAnInteractiveSession()
+		if err != nil {
+			log.Fatalf("failed to determine if we are running in an interactive session: %v", err)
+		}
+		if !isIntSess {
+			s.Run()
+			return true
+		}
+
+
+
     }
-    if (isSysV()) {
+    if (IsSysV()) {
         fmt.Println("sysv")
     }
-    if (isUpstart()) {
+    if (IsUpstart()) {
         fmt.Println("upstart")
     }
-    if (isSystemd()) {
+    if (IsSystemd()) {
         fmt.Println("systemd")
         s := SystemD{
             Name: "MyTest",
@@ -76,8 +98,4 @@ func register() bool {
     }
 
     return true
-}
-
-func main() {
-    register()
 }
