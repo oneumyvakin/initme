@@ -1,7 +1,7 @@
 package initme
 
 import (
-    "fmt"
+
     "time"
     "os/exec"
     "syscall"
@@ -9,6 +9,8 @@ import (
 
     "golang.org/x/sys/windows/svc"
     "golang.org/x/sys/windows/svc/debug"
+    "log"
+    "fmt"
 )
 
 type WindowsService struct {
@@ -25,7 +27,10 @@ type WindowsService struct {
     DisplayName string
     Password string
 
+    Log *log.Logger
+
     eventLog debug.Log
+
 }
 
 func (self WindowsService) Register() (output string, err error, code int)  {
@@ -123,12 +128,15 @@ func (self *WindowsService) Execute(args []string, r <-chan svc.ChangeRequest, c
 	slowtick := time.Tick(2 * time.Second)
 	tick := fasttick
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+
+    go self.Job()
+
 loop:
 	for {
 		select {
 		case <-tick:
-			self.Job()
-			self.eventLog.Info(1, "beep")
+
+			//self.eventLog.Info(1, "beep")
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
@@ -145,7 +153,7 @@ loop:
 				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 				tick = fasttick
 			default:
-				self.eventLog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
+				self.Log.Println(fmt.Sprintf("unexpected control request #%d", c))
 			}
 		}
 	}
