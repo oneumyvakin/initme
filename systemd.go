@@ -112,6 +112,9 @@ func (self SystemD) createUnitFile() (err error) {
 }
 
 func (self SystemD) execute(args... string) (output string, err error, code int) {
+	self.Log.Print("systemctl ")
+	self.Log.Println(args)
+
     cmd := exec.Command("systemctl", args...)
     var waitStatus syscall.WaitStatus
     var outputBytes []byte
@@ -127,5 +130,7 @@ func (self SystemD) execute(args... string) (output string, err error, code int)
         code = waitStatus.ExitStatus()
     }
 
-    return string(outputBytes), err, code
+    output = string(outputBytes)
+	self.Log.Println(output, err, code)
+    return
 }
