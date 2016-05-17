@@ -17,7 +17,7 @@ type WindowsService struct {
     Name string
     Job func()
     Type string
-    Start string
+    StartType string
     Error string
     BinPath string
     Group string
@@ -41,7 +41,7 @@ func (self WindowsService) Register() (output string, err error, code int)  {
     return self.execute(args...)
 }
 
-func (self WindowsService) StartService() (output string, err error, code int)  {
+func (self WindowsService) Start() (output string, err error, code int)  {
     return self.execute("start", self.Name)
 }
 
@@ -75,8 +75,8 @@ func (self WindowsService) buildScArgs(init... string) (args []string, err error
     if self.Type != "" {
         args = append(args, "type=", self.Type)
     }
-    if self.Start != "" {
-        args = append(args, "start=", self.Start)
+    if self.StartType != "" {
+        args = append(args, "start=", self.StartType)
     }
     if self.Error != "" {
         args = append(args, "error=", self.Error)

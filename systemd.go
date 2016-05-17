@@ -65,7 +65,7 @@ func (self SystemD) Disable() (err error) {
 
 func (self SystemD) Delete() (err error) {
 	if _, err := os.Stat(path.Join(unitStoragePath, self.Name + ".service")); os.IsNotExist(err) {
-		return
+		return nil
 	}
 
 	err = os.Remove(path.Join(unitStoragePath, self.Name + ".service"))
@@ -112,8 +112,7 @@ func (self SystemD) createUnitFile() (err error) {
 }
 
 func (self SystemD) execute(args... string) (output string, err error, code int) {
-	self.Log.Print("systemctl ")
-	self.Log.Println(args)
+	self.Log.Printf("systemctl %s", args)
 
     cmd := exec.Command("systemctl", args...)
     var waitStatus syscall.WaitStatus
