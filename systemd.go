@@ -10,6 +10,7 @@ import (
     "fmt"
     "syscall"
     "bytes"
+	"log"
 )
 
 const (
@@ -28,18 +29,19 @@ WantedBy={{ .WantedBy }}`
 
 type SystemD struct {
     Name string
+	Log *log.Logger
     Description string
     TimeoutStartSec string
     ExecStart string
     WantedBy string
 }
 
-func (self SystemD) Register() (err error)  {
+func (self SystemD) Register() (output string, err error, code int)  {
     if err = self.createUnitFile(); err != nil {
-        return fmt.Errorf("Register: %s", err)
+        return
     }
 
-    return nil
+    return self.Enable()
 }
 
 func (self SystemD) Status() (output string, err error, code int) {
@@ -61,15 +63,17 @@ func (self SystemD) Disable() (err error) {
     return nil
 }
 
-func (self SystemD) Start() (err error) {
-    cmd := exec.Command("systemctl", "start", self.Name + ".service")
-    _, err = cmd.CombinedOutput()
-
-    if err != nil {
-        return fmt.Errorf("Start: %s", err)
+func (self SystemD) Delete() (err error) {
+	if _, err := os.Stat(path.Join(unitStoragePath, self.Name + ".service")); os.IsNotExist(err) {
+		return
 	}
 
-    return nil
+	err = os.Remove(path.Join(unitStoragePath, self.Name + ".service"))
+    return
+}
+
+func (self SystemD) Start() (output string, err error, code int)  {
+    return self.execute("start", self.Name + ".service")
 }
 
 func (self SystemD) Stop() (err error) {

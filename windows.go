@@ -41,6 +41,22 @@ func (self WindowsService) Register() (output string, err error, code int)  {
     return self.execute(args...)
 }
 
+func (self WindowsService) StartService() (output string, err error, code int)  {
+    return self.execute("start", self.Name)
+}
+
+func (self WindowsService) Stop() (output string, err error, code int)  {
+    return self.execute("stop", self.Name)
+}
+
+func (self WindowsService) Status() (output string, err error, code int)  {
+    return self.execute("query", self.Name)
+}
+
+func (self WindowsService) Disable() (output string, err error, code int)  {
+    return self.execute("config", self.Name, "start=", "disabled")
+}
+
 func (self WindowsService) Delete() (output string, err error, code int)  {
     return self.execute("delete", self.Name)
 }
@@ -57,48 +73,51 @@ func (self WindowsService) buildScArgs(init... string) (args []string, err error
         return nil, errors.New("Name is mandatory")
     }
     if self.Type != "" {
-        args = append(args, "type= " + self.Type)
+        args = append(args, "type=", self.Type)
     }
     if self.Start != "" {
-        args = append(args, "start= " + self.Start)
+        args = append(args, "start=", self.Start)
     }
     if self.Error != "" {
-        args = append(args, "error= " + self.Error)
+        args = append(args, "error=", self.Error)
     }
     if self.BinPath != "" {
-        args = append(args, "binpath=" + self.BinPath)
+        args = append(args, "binpath=", self.BinPath)
     } else {
         return nil, errors.New("BinPath is mandatory")
     }
     if self.Group != "" {
-        args = append(args, "group= " + self.Group)
+        args = append(args, "group=", self.Group)
     }
     if self.Tag != "" {
-        args = append(args, "tag= " + self.Tag)
+        args = append(args, "tag=", self.Tag)
     }
     if self.Depend != "" {
-        args = append(args, "depend= " + self.Depend)
+        args = append(args, "depend=", self.Depend)
     }
     if self.Obj != "" {
         if self.Password != "" {
             return nil, errors.New("Password is mandatory if Obj is set")
         }
-        args = append(args, "obj= " + self.Obj)
+        args = append(args, "obj=", self.Obj)
     }
     if self.DisplayName != "" {
-        args = append(args, "DisplayName= " + self.DisplayName)
+        args = append(args, "DisplayName=", self.DisplayName)
     }
     if self.Password != "" {
         if self.Obj != "" {
             return nil, errors.New("Password is meanful only if Obj is set")
         }
-        args = append(args, "password= " + self.Password)
+        args = append(args, "password=", self.Password)
     }
 
     return
 }
 
 func (self WindowsService) execute(args... string) (output string, err error, code int) {
+	self.Log.Print("sc.exe ")
+	self.Log.Println(args)
+
     cmd := exec.Command("sc.exe", args...)
     var waitStatus syscall.WaitStatus
     var outputBytes []byte
@@ -114,7 +133,9 @@ func (self WindowsService) execute(args... string) (output string, err error, co
         code = waitStatus.ExitStatus()
     }
 
-    return string(outputBytes), err, code
+	output = string(outputBytes)
+	self.Log.Println(output, err, code)
+    return
 }
 
 func (self *WindowsService) Run() {
