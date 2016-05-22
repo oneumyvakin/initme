@@ -57,6 +57,7 @@ type Config struct {
     Description string
     // SysV specific
     Command string
+    Provides string
     Required string
 
     // SystemD specific

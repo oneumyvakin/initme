@@ -12,23 +12,24 @@ import (
 	"io/ioutil"
 	"os"
 	"text/template"
+    "errors"
 )
 
 const (
 	sysVstoragePath string  = "/etc/init.d"
 	sysVtemplate string = `#!/bin/sh
 ### BEGIN INIT INFO
-# Provides:
-# Required-Start:    {{ .Required }}
+# Provides:          {{ .Conf.Provides }}
+# Required-Start:    {{ .Conf.Required }}
 # Required-Stop:     $null
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: {{ .Description }}
-# Description:       {{ .Description }}.
+# Short-Description: {{ .Conf.Description }}
+# Description:       {{ .Conf.Description }}.
 ### END INIT INFO
 
 
-cmd="{{ .Command }}"
+cmd="{{ .Conf.Command }}"
 
 name=` + "`" + "basename $0" + "`" + `
 pid_file="/var/run/$name.pid"
@@ -217,6 +218,23 @@ func (self SysV) createServiceFile() (err error) {
 	}
 
     return nil
+}
+
+func (self SysV) getRegistrar() (registrar, command string, err error) {
+    registrars := map[string]string{
+        "chkconfig": "enable",
+        "update-rc.d": "defaults",
+    }
+    for r, c := range registrars {
+        output, err, code := self.execute("which", r)
+        if err == nil {
+            return r, c, nil
+        }
+    }
+
+    err = errors.New("SysV service registrars are not found!")
+    self.Conf.Log.Println(err)
+    return
 }
 
 func (self SysV) IsAnInteractiveSession() (bool, error) {

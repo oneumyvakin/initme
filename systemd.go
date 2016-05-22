@@ -17,15 +17,15 @@ import (
 const (
     unitStoragePath string  = "/etc/systemd/system"
     unitTemplate string = `[Unit]
-Description={{ .Description }}
+Description={{ .Conf.Description }}
 After=network.target
 
 [Service]
-TimeoutStartSec={{ .TimeoutStartSec }}
-ExecStart={{ .ExecStart }}
+TimeoutStartSec={{ .Conf.TimeoutStartSec }}
+ExecStart={{ .Conf.ExecStart }}
 
 [Install]
-WantedBy={{ .WantedBy }}`
+WantedBy={{ .Conf.WantedBy }}`
 )
 
 func init() {
