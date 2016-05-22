@@ -1,36 +1,30 @@
+// +build windows
+
 package initme
 
 import (
-
+    "fmt"
     "time"
     "os/exec"
     "syscall"
     "errors"
 
     "golang.org/x/sys/windows/svc"
-    "golang.org/x/sys/windows/svc/debug"
-    "log"
-    "fmt"
 )
 
+func init() {
+    serviceType = WindowsService{}
+}
+
 type WindowsService struct {
-    Name string
-    Job func()
-    Type string
-    StartType string
-    Error string
-    BinPath string
-    Group string
-    Tag string
-    Depend string
-    Obj string
-    DisplayName string
-    Password string
+    Conf Config
+}
 
-    Log *log.Logger
+func (self WindowsService) New(c Config) Service {
 
-    eventLog debug.Log
+    self.Conf = c
 
+    return self
 }
 
 func (self WindowsService) Register() (output string, err error, code int)  {
@@ -42,23 +36,23 @@ func (self WindowsService) Register() (output string, err error, code int)  {
 }
 
 func (self WindowsService) Start() (output string, err error, code int)  {
-    return self.execute("start", self.Name)
+    return self.execute("start", self.Conf.Name)
 }
 
 func (self WindowsService) Stop() (output string, err error, code int)  {
-    return self.execute("stop", self.Name)
+    return self.execute("stop", self.Conf.Name)
 }
 
 func (self WindowsService) Status() (output string, err error, code int)  {
-    return self.execute("query", self.Name)
+    return self.execute("query", self.Conf.Name)
 }
 
 func (self WindowsService) Disable() (output string, err error, code int)  {
-    return self.execute("config", self.Name, "start=", "disabled")
+    return self.execute("config", self.Conf.Name, "start=", "disabled")
 }
 
 func (self WindowsService) Delete() (output string, err error, code int)  {
-    return self.execute("delete", self.Name)
+    return self.execute("delete", self.Conf.Name)
 }
 
 // https://support.microsoft.com/en-us/kb/251192
@@ -67,56 +61,56 @@ func (self WindowsService) buildScArgs(init... string) (args []string, err error
 
     args = append(args, init...)
 
-    if self.Name != "" {
-        args = append(args, self.Name)
+    if self.Conf.Name != "" {
+        args = append(args, self.Conf.Name)
     } else {
         return nil, errors.New("Name is mandatory")
     }
-    if self.Type != "" {
-        args = append(args, "type=", self.Type)
+    if self.Conf.Type != "" {
+        args = append(args, "type=", self.Conf.Type)
     }
-    if self.StartType != "" {
-        args = append(args, "start=", self.StartType)
+    if self.Conf.StartType != "" {
+        args = append(args, "start=", self.Conf.StartType)
     }
-    if self.Error != "" {
-        args = append(args, "error=", self.Error)
+    if self.Conf.Error != "" {
+        args = append(args, "error=", self.Conf.Error)
     }
-    if self.BinPath != "" {
-        args = append(args, "binpath=", self.BinPath)
+    if self.Conf.BinPath != "" {
+        args = append(args, "binpath=", self.Conf.BinPath)
     } else {
         return nil, errors.New("BinPath is mandatory")
     }
-    if self.Group != "" {
-        args = append(args, "group=", self.Group)
+    if self.Conf.Group != "" {
+        args = append(args, "group=", self.Conf.Group)
     }
-    if self.Tag != "" {
-        args = append(args, "tag=", self.Tag)
+    if self.Conf.Tag != "" {
+        args = append(args, "tag=", self.Conf.Tag)
     }
-    if self.Depend != "" {
-        args = append(args, "depend=", self.Depend)
+    if self.Conf.Depend != "" {
+        args = append(args, "depend=", self.Conf.Depend)
     }
-    if self.Obj != "" {
-        if self.Password != "" {
+    if self.Conf.Obj != "" {
+        if self.Conf.Password != "" {
             return nil, errors.New("Password is mandatory if Obj is set")
         }
-        args = append(args, "obj=", self.Obj)
+        args = append(args, "obj=", self.Conf.Obj)
     }
-    if self.DisplayName != "" {
-        args = append(args, "DisplayName=", self.DisplayName)
+    if self.Conf.DisplayName != "" {
+        args = append(args, "DisplayName=", self.Conf.DisplayName)
     }
-    if self.Password != "" {
-        if self.Obj != "" {
+    if self.Conf.Password != "" {
+        if self.Conf.Obj != "" {
             return nil, errors.New("Password is meanful only if Obj is set")
         }
-        args = append(args, "password=", self.Password)
+        args = append(args, "password=", self.Conf.Password)
     }
 
     return
 }
 
 func (self WindowsService) execute(args... string) (output string, err error, code int) {
-	self.Log.Print("sc.exe ")
-	self.Log.Println(args)
+	self.Conf.Log.Print("sc.exe ")
+	self.Conf.Log.Println(args)
 
     cmd := exec.Command("sc.exe", args...)
     var waitStatus syscall.WaitStatus
@@ -134,15 +128,19 @@ func (self WindowsService) execute(args... string) (output string, err error, co
     }
 
 	output = string(outputBytes)
-	self.Log.Println(output, err, code)
+	self.Conf.Log.Println(output, err, code)
     return
 }
 
-func (self *WindowsService) Run() {
-    svc.Run(self.Name, self)
+func (self WindowsService) IsAnInteractiveSession() (bool, error) {
+    return svc.IsAnInteractiveSession()
 }
 
-func (self *WindowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
+func (self WindowsService) Run() {
+    svc.Run(self.Conf.Name, self)
+}
+
+func (self WindowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
 	changes <- svc.Status{State: svc.StartPending}
 	fasttick := time.Tick(500 * time.Millisecond)
@@ -150,7 +148,7 @@ func (self *WindowsService) Execute(args []string, r <-chan svc.ChangeRequest, c
 	tick := fasttick
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 
-    go self.Job()
+    go self.Conf.Job()
 
 loop:
 	for {
@@ -174,7 +172,7 @@ loop:
 				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 				tick = fasttick
 			default:
-				self.Log.Println(fmt.Sprintf("unexpected control request #%d", c))
+				self.Conf.Log.Println(fmt.Sprintf("unexpected control request #%d", c))
 			}
 		}
 	}

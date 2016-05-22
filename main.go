@@ -4,11 +4,18 @@ import (
     "os/exec"
     "strings"
     "path/filepath"
+    "log"
 )
 
 const (
     initbin string = "/sbin/init"
 )
+
+var serviceType Service
+
+func New(c Config) Service {
+    return serviceType.New(c)
+}
 
 func IsSysV() bool {
     hcmd := exec.Command(initbin, "--help")
@@ -44,3 +51,50 @@ func IsSystemD() bool {
     return strings.Contains(string(evaled), "systemd")
 }
 
+type Config struct {
+    Name string
+    Log *log.Logger
+    Description string
+    // SysV specific
+    Command string
+    Required string
+
+    // SystemD specific
+    TimeoutStartSec string
+    ExecStart string
+    WantedBy string
+
+    // Windows Specific
+    Job func()
+    Type string
+    StartType string
+    Error string
+    BinPath string
+    Group string
+    Tag string
+    Depend string
+    Obj string
+    DisplayName string
+    Password string
+}
+
+type Service interface {
+
+    New(Config) Service
+
+    Register() (output string, err error, code int)
+
+    Start() (output string, err error, code int)
+
+    Stop() (output string, err error, code int)
+
+    Status() (output string, err error, code int)
+
+    Disable() (output string, err error, code int)
+
+    Delete() (output string, err error, code int)
+
+    Run()
+
+    IsAnInteractiveSession() (bool, error)
+}

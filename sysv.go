@@ -1,7 +1,8 @@
+// +build linux
+
 package initme
 
 import (
-	"log"
 	"os/exec"
 	"syscall"
 	"bytes"
@@ -112,12 +113,21 @@ esac
 exit 0`
 )
 
+func init() {
+    if IsSysV() {
+        serviceType = SysV{}
+    }
+}
+
 type SysV struct {
-    Name string
-	Log *log.Logger
-    Description string
-    Command string
-    Required string
+    Conf Config
+}
+
+func (self SysV) New(c Config) Service {
+
+    self.Conf = c
+
+    return self
 }
 
 func (self SysV) Register() (output string, err error, code int)  {
@@ -129,36 +139,40 @@ func (self SysV) Register() (output string, err error, code int)  {
 }
 
 func (self SysV) Enable() (output string, err error, code int)  {
-	return self.execute("chkconfig", self.Name, "on")
+	return self.execute("chkconfig", self.Conf.Name, "on")
 }
 
 func (self SysV) Start() (output string, err error, code int)  {
-	return self.execute(path.Join(sysVstoragePath, self.Name), "start")
+	return self.execute(path.Join(sysVstoragePath, self.Conf.Name), "start")
 }
 
 func (self SysV) Stop() (output string, err error, code int)  {
-    return self.execute(path.Join(sysVstoragePath, self.Name), "stop")
+    return self.execute(path.Join(sysVstoragePath, self.Conf.Name), "stop")
 }
 
 func (self SysV) Status() (output string, err error, code int)  {
-    return self.execute(path.Join(sysVstoragePath, self.Name), "status")
+    return self.execute(path.Join(sysVstoragePath, self.Conf.Name), "status")
 }
 
 func (self SysV) Disable() (output string, err error, code int)  {
-    return self.execute("chkconfig", self.Name, "off")
+    return self.execute("chkconfig", self.Conf.Name, "off")
 }
 
-func (self SysV) Delete() (err error) {
-	if _, err := os.Stat(path.Join(sysVstoragePath, self.Name)); os.IsNotExist(err) {
-		return nil
+func (self SysV) Delete() (output string, err error, code int) {
+	if _, err := os.Stat(path.Join(sysVstoragePath, self.Conf.Name)); os.IsNotExist(err) {
+		return output, nil, code
 	}
 
-	err = os.Remove(path.Join(sysVstoragePath, self.Name))
+	err = os.Remove(path.Join(sysVstoragePath, self.Conf.Name))
     return
 }
 
+func (self SysV) Run() {
+    // To fit Service interface
+}
+
 func (self SysV) execute(command string, args... string) (output string, err error, code int) {
-	self.Log.Printf("%s %s", command, args)
+	self.Conf.Log.Printf("%s %s", command, args)
 
     cmd := exec.Command(command, args...)
     var waitStatus syscall.WaitStatus
@@ -176,7 +190,7 @@ func (self SysV) execute(command string, args... string) (output string, err err
     }
 
     output = string(outputBytes)
-	self.Log.Println(output, err, code)
+	self.Conf.Log.Println(output, err, code)
     return
 }
 
@@ -195,7 +209,7 @@ func (self SysV) createServiceFile() (err error) {
 	}
 	unitString.Flush()
 
-	unitPath := path.Join(sysVstoragePath, self.Name)
+	unitPath := path.Join(sysVstoragePath, self.Conf.Name)
 
 	err = ioutil.WriteFile(unitPath, b.Bytes(), os.ModePerm)
 	if err != nil {
@@ -203,4 +217,9 @@ func (self SysV) createServiceFile() (err error) {
 	}
 
     return nil
+}
+
+func (self SysV) IsAnInteractiveSession() (bool, error) {
+    // To fit Service interface
+    return false, nil
 }
