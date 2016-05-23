@@ -139,7 +139,7 @@ func (self SysV) Register() (output string, err error, code int)  {
 }
 
 func (self SysV) Enable() (output string, err error, code int)  {
-	return self.execute("update-rc.d", self.Conf.Name, "enable", "2", "3", "4", "5")
+	return self.execute("update-rc.d", self.Conf.Name, "defaults")
 }
 
 func (self SysV) Start() (output string, err error, code int)  {
@@ -159,6 +159,10 @@ func (self SysV) Disable() (output string, err error, code int)  {
 }
 
 func (self SysV) Delete() (output string, err error, code int) {
+    if _, err := os.Stat(path.Join(sysVstoragePath, self.Conf.Name)); !os.IsNotExist(err) {
+        err = os.Remove(path.Join(sysVstoragePath, self.Conf.Name))
+    }
+
 	return self.execute("update-rc.d", self.Conf.Name, "remove")
 }
 
