@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"os"
 	"text/template"
-    "errors"
 )
 
 const (
@@ -140,7 +139,7 @@ func (self SysV) Register() (output string, err error, code int)  {
 }
 
 func (self SysV) Enable() (output string, err error, code int)  {
-	return self.execute("chkconfig", self.Conf.Name, "on")
+	return self.execute("update-rc.d", self.Conf.Name, "enable", "2", "3", "4", "5")
 }
 
 func (self SysV) Start() (output string, err error, code int)  {
@@ -156,16 +155,11 @@ func (self SysV) Status() (output string, err error, code int)  {
 }
 
 func (self SysV) Disable() (output string, err error, code int)  {
-    return self.execute("chkconfig", self.Conf.Name, "off")
+    return self.execute("update-rc.d", self.Conf.Name, "disable", "2", "3", "4", "5")
 }
 
 func (self SysV) Delete() (output string, err error, code int) {
-	if _, err := os.Stat(path.Join(sysVstoragePath, self.Conf.Name)); os.IsNotExist(err) {
-		return output, nil, code
-	}
-
-	err = os.Remove(path.Join(sysVstoragePath, self.Conf.Name))
-    return
+	return self.execute("update-rc.d", self.Conf.Name, "remove")
 }
 
 func (self SysV) Run() {
@@ -218,23 +212,6 @@ func (self SysV) createServiceFile() (err error) {
 	}
 
     return nil
-}
-
-func (self SysV) getRegistrar() (registrar, command string, err error) {
-    registrars := map[string]string{
-        "chkconfig": "enable",
-        "update-rc.d": "defaults",
-    }
-    for r, c := range registrars {
-        output, err, code := self.execute("which", r)
-        if err == nil {
-            return r, c, nil
-        }
-    }
-
-    err = errors.New("SysV service registrars are not found!")
-    self.Conf.Log.Println(err)
-    return
 }
 
 func (self SysV) IsAnInteractiveSession() (bool, error) {
