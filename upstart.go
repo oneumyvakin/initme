@@ -48,7 +48,7 @@ func (self Upstart) New(c Config) Service {
 }
 
 func (self Upstart) Register() (output string, err error, code int)  {
-	if err = self.createServiceFile(); err != nil {
+	if err = self.createUpstartFile(); err != nil {
         return
     }
 
