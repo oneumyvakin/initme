@@ -56,29 +56,32 @@ func (self Upstart) Register() (output string, err error, code int) {
 }
 
 func (self Upstart) Enable() (output string, err error, code int) {
+    if _, err := os.Stat(path.Join(upstartStoragePath, self.Conf.Name + ".disabled")); !os.IsNotExist(err) {
+		err = os.Rename(self.Conf.Name + ".disabled", self.Conf.Name + ".conf")
+	}
 	return self.execute("initctl", "reload-configuration")
 }
 
 func (self Upstart) Start() (output string, err error, code int) {
-	return self.execute("service", self.Conf.Name, "start")
+	return self.execute("initctl", "start", self.Conf.Name)
 }
 
 func (self Upstart) Stop() (output string, err error, code int) {
-	return self.execute("service", self.Conf.Name, "stop")
+	return self.execute("initctl", "stop", self.Conf.Name)
 }
 
 func (self Upstart) Status() (output string, err error, code int) {
-	return self.execute("service", self.Conf.Name, "status")
+	return self.execute("initctl", "status", self.Conf.Name)
 }
 
 func (self Upstart) Disable() (output string, err error, code int) {
-	return self.execute("update-rc.d", self.Conf.Name, "disable", "2", "3", "4", "5")
+    err = os.Rename(self.Conf.Name + ".conf", self.Conf.Name + ".disabled")
+	return
 }
 
 func (self Upstart) Delete() (output string, err error, code int) {
-	if _, err := os.Stat(path.Join(sysVstoragePath, self.Conf.Name)); !os.IsNotExist(err) {
-		err = os.Remove(path.Join(sysVstoragePath, self.Conf.Name))
-	}
+	os.Remove(path.Join(upstartStoragePath, self.Conf.Name + ".conf"))
+    os.Remove(path.Join(upstartStoragePath, self.Conf.Name + ".disabled"))
 
 	return self.execute("initctl", "reload-configuration")
 }
@@ -107,7 +110,7 @@ func (self Upstart) createUpstartFile() (err error) {
 	}
 	unitString.Flush()
 
-	unitPath := path.Join(upstartStoragePath, self.Conf.Name)
+	unitPath := path.Join(upstartStoragePath, self.Conf.Name + ".conf")
 
 	err = ioutil.WriteFile(unitPath, b.Bytes(), os.ModePerm)
 	if err != nil {

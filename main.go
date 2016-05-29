@@ -65,6 +65,9 @@ type Config struct {
 	ExecStart       string
 	WantedBy        string
 
+    // Upstart specific
+    Exec        string
+
 	// Windows Specific
 	Job         func()
 	Type        string
