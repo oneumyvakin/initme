@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"text/template"
+    "strings"
 )
 
 const (
@@ -139,7 +140,7 @@ func (self SysV) Register() (output string, err error, code int)  {
 }
 
 func (self SysV) Enable() (output string, err error, code int)  {
-	return self.execute("update-rc.d", self.Conf.Name, "defaults")
+    return self.initier("enable")
 }
 
 func (self SysV) Start() (output string, err error, code int)  {
@@ -155,7 +156,7 @@ func (self SysV) Status() (output string, err error, code int)  {
 }
 
 func (self SysV) Disable() (output string, err error, code int)  {
-    return self.execute("update-rc.d", self.Conf.Name, "disable", "2", "3", "4", "5")
+    return self.initier("disable")
 }
 
 func (self SysV) Delete() (output string, err error, code int) {
@@ -163,12 +164,48 @@ func (self SysV) Delete() (output string, err error, code int) {
         err = os.Remove(path.Join(sysVstoragePath, self.Conf.Name))
     }
 
-	return self.execute("update-rc.d", self.Conf.Name, "remove")
+    return self.initier("delete")
 }
 
 func (self SysV) Run() {
     // To fit Service interface
 }
+
+func (self SysV) initier(command string) (output string, err error, code int) {
+    var ctl string
+    output, err, code = self.execute("which", "update-rc.d")
+    if err == nil {
+        ctl = "update-rc.d"
+    }
+    output, err, code = self.execute("which", "chkconfig")
+    if err == nil {
+        ctl = "chkconfig"
+    }
+    if ctl == "" {
+        self.Conf.Log.Printf("Control utility not found. Aborting.")
+        return
+    }
+
+    self.Conf.Log.Printf("Control utility found: " + ctl)
+
+    cmdSet := map[string]map[string]string {
+        "update-rc.d" : map[string]string{
+            "enable": self.Conf.Name + " defaults",
+            "disable": self.Conf.Name + " disable 2 3 4 5",
+            "delete": self.Conf.Name + " remove",
+        },
+        "chkconfig" : map[string]string{
+            "enable": "-s " + self.Conf.Name + " on",
+            "disable": "-s " + self.Conf.Name + " off",
+            "delete": "-s " + self.Conf.Name + " off",
+        },
+    }
+
+    args := strings.Split(cmdSet[ctl][command], " ")
+
+    return self.execute(ctl, args...)
+}
+
 
 func (self SysV) execute(command string, args... string) (output string, err error, code int) {
 	self.Conf.Log.Printf("%s %s", command, args)
@@ -189,7 +226,8 @@ func (self SysV) execute(command string, args... string) (output string, err err
     }
 
     output = string(outputBytes)
-	self.Conf.Log.Println(output, err, code)
+
+	self.Conf.Log.Println("output: ", output, "err: ", err, "code: ", code)
     return
 }
 
