@@ -3,20 +3,20 @@
 package initme
 
 import (
-    "bufio"
-    "os"
-    "path"
-    "text/template"
-    "io/ioutil"
-    "os/exec"
-    "fmt"
-    "syscall"
-    "bytes"
+	"bufio"
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"syscall"
+	"text/template"
 )
 
 const (
-    unitStoragePath string  = "/etc/systemd/system"
-    unitTemplate string = `[Unit]
+	unitStoragePath string = "/etc/systemd/system"
+	unitTemplate    string = `[Unit]
 Description={{ .Conf.Description }}
 After=network.target
 
@@ -29,64 +29,61 @@ WantedBy={{ .Conf.WantedBy }}`
 )
 
 func init() {
-    if IsSystemD() {
-        serviceType = SystemD{}
-    }
+	if IsSystemD() {
+		serviceType = SystemD{}
+	}
 }
-
 
 type SystemD struct {
-    Conf Config
+	Conf Config
 }
-
 
 func (self SystemD) New(c Config) Service {
 
-    self.Conf = c
+	self.Conf = c
 
-    return self
+	return self
 }
 
-func (self SystemD) Register() (output string, err error, code int)  {
-    if err = self.createUnitFile(); err != nil {
-        return
-    }
+func (self SystemD) Register() (output string, err error, code int) {
+	if err = self.createUnitFile(); err != nil {
+		return
+	}
 
-    return self.Enable()
+	return self.Enable()
 }
-
 
 func (self SystemD) Start() (output string, err error, code int) {
-    return self.execute("start", self.Conf.Name + ".service")
+	return self.execute("start", self.Conf.Name+".service")
 }
 
 func (self SystemD) Stop() (output string, err error, code int) {
-    return self.execute("stop", self.Conf.Name + ".service")
+	return self.execute("stop", self.Conf.Name+".service")
 }
 
 func (self SystemD) Status() (output string, err error, code int) {
-    return self.execute("status", self.Conf.Name + ".service")
+	return self.execute("status", self.Conf.Name+".service")
 }
 
 func (self SystemD) Enable() (output string, err error, code int) {
-    return self.execute("enable", path.Join(unitStoragePath, self.Conf.Name + ".service"))
+	return self.execute("enable", path.Join(unitStoragePath, self.Conf.Name+".service"))
 }
 
 func (self SystemD) Disable() (output string, err error, code int) {
-    return self.execute("disable", self.Conf.Name + ".service")
+	return self.execute("disable", self.Conf.Name+".service")
 }
 
 func (self SystemD) Delete() (output string, err error, code int) {
-	if _, err := os.Stat(path.Join(unitStoragePath, self.Conf.Name + ".service")); os.IsNotExist(err) {
+	if _, err := os.Stat(path.Join(unitStoragePath, self.Conf.Name+".service")); os.IsNotExist(err) {
 		return output, nil, code
 	}
 
-	err = os.Remove(path.Join(unitStoragePath, self.Conf.Name + ".service"))
-    return
+	err = os.Remove(path.Join(unitStoragePath, self.Conf.Name+".service"))
+	return
 }
 
 func (self SystemD) Run() {
-    // To fit Service interface
+	// To fit Service interface
 }
 
 func (self SystemD) createUnitFile() (err error) {
@@ -95,49 +92,49 @@ func (self SystemD) createUnitFile() (err error) {
 
 	unitTmpl, err := template.New("unit").Parse(unitTemplate)
 	if err != nil {
-        return fmt.Errorf("createUnitFile: %s", err)
+		return fmt.Errorf("createUnitFile: %s", err)
 	}
 
 	err = unitTmpl.Execute(unitString, self)
 	if err != nil {
-        return fmt.Errorf("createUnitFile: %s", err)
+		return fmt.Errorf("createUnitFile: %s", err)
 	}
 	unitString.Flush()
 
-	unitPath := path.Join(unitStoragePath, self.Conf.Name + ".service")
+	unitPath := path.Join(unitStoragePath, self.Conf.Name+".service")
 
 	err = ioutil.WriteFile(unitPath, b.Bytes(), os.ModePerm)
 	if err != nil {
-        return fmt.Errorf("createUnitFile: %s", err)
+		return fmt.Errorf("createUnitFile: %s", err)
 	}
 
-    return nil
+	return nil
 }
 
-func (self SystemD) execute(args... string) (output string, err error, code int) {
+func (self SystemD) execute(args ...string) (output string, err error, code int) {
 	self.Conf.Log.Printf("systemctl %s", args)
 
-    cmd := exec.Command("systemctl", args...)
-    var waitStatus syscall.WaitStatus
-    var outputBytes []byte
-    if outputBytes, err = cmd.CombinedOutput(); err != nil {
-        // Did the command fail because of an unsuccessful exit code
-        if exitError, ok := err.(*exec.ExitError); ok {
-            waitStatus = exitError.Sys().(syscall.WaitStatus)
-            code = waitStatus.ExitStatus()
-        }
-    } else {
-        // Command was successful
-        waitStatus = cmd.ProcessState.Sys().(syscall.WaitStatus)
-        code = waitStatus.ExitStatus()
-    }
+	cmd := exec.Command("systemctl", args...)
+	var waitStatus syscall.WaitStatus
+	var outputBytes []byte
+	if outputBytes, err = cmd.CombinedOutput(); err != nil {
+		// Did the command fail because of an unsuccessful exit code
+		if exitError, ok := err.(*exec.ExitError); ok {
+			waitStatus = exitError.Sys().(syscall.WaitStatus)
+			code = waitStatus.ExitStatus()
+		}
+	} else {
+		// Command was successful
+		waitStatus = cmd.ProcessState.Sys().(syscall.WaitStatus)
+		code = waitStatus.ExitStatus()
+	}
 
-    output = string(outputBytes)
+	output = string(outputBytes)
 	self.Conf.Log.Println(output, err, code)
-    return
+	return
 }
 
 func (self SystemD) IsAnInteractiveSession() (bool, error) {
-    // To fit Service interface
-    return false, nil
+	// To fit Service interface
+	return false, nil
 }
