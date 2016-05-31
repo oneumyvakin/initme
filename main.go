@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+    "syscall"
 )
 
 const (
@@ -101,3 +102,28 @@ type Service interface {
 
 	IsAnInteractiveSession() (bool, error)
 }
+
+func execute(log *log.Logger, command string, args ...string) (output string, err error, code int) {
+	log.Printf("%s %s", command, args)
+
+	cmd := exec.Command(command, args...)
+	var waitStatus syscall.WaitStatus
+	var outputBytes []byte
+	if outputBytes, err = cmd.CombinedOutput(); err != nil {
+		// Did the command fail because of an unsuccessful exit code
+		if exitError, ok := err.(*exec.ExitError); ok {
+			waitStatus = exitError.Sys().(syscall.WaitStatus)
+			code = waitStatus.ExitStatus()
+		}
+	} else {
+		// Command was successful
+		waitStatus = cmd.ProcessState.Sys().(syscall.WaitStatus)
+		code = waitStatus.ExitStatus()
+	}
+
+	output = string(outputBytes)
+
+	log.Println("output: ", output, "err: ", err, "code: ", code)
+	return
+}
+

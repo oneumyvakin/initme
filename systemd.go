@@ -8,9 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
-	"syscall"
 	"text/template"
 )
 
@@ -54,23 +52,23 @@ func (self SystemD) Register() (output string, err error, code int) {
 }
 
 func (self SystemD) Start() (output string, err error, code int) {
-	return self.execute("start", self.Conf.Name+".service")
+	return execute(self.Conf.Log, "systemctl", "start", self.Conf.Name+".service")
 }
 
 func (self SystemD) Stop() (output string, err error, code int) {
-	return self.execute("stop", self.Conf.Name+".service")
+	return execute(self.Conf.Log, "systemctl", "stop", self.Conf.Name+".service")
 }
 
 func (self SystemD) Status() (output string, err error, code int) {
-	return self.execute("status", self.Conf.Name+".service")
+	return execute(self.Conf.Log, "systemctl", "status", self.Conf.Name+".service")
 }
 
 func (self SystemD) Enable() (output string, err error, code int) {
-	return self.execute("enable", path.Join(unitStoragePath, self.Conf.Name+".service"))
+	return execute(self.Conf.Log, "systemctl", "enable", path.Join(unitStoragePath, self.Conf.Name+".service"))
 }
 
 func (self SystemD) Disable() (output string, err error, code int) {
-	return self.execute("disable", self.Conf.Name+".service")
+	return execute(self.Conf.Log, "systemctl", "disable", self.Conf.Name+".service")
 }
 
 func (self SystemD) Delete() (output string, err error, code int) {
@@ -109,29 +107,6 @@ func (self SystemD) createUnitFile() (err error) {
 	}
 
 	return nil
-}
-
-func (self SystemD) execute(args ...string) (output string, err error, code int) {
-	self.Conf.Log.Printf("systemctl %s", args)
-
-	cmd := exec.Command("systemctl", args...)
-	var waitStatus syscall.WaitStatus
-	var outputBytes []byte
-	if outputBytes, err = cmd.CombinedOutput(); err != nil {
-		// Did the command fail because of an unsuccessful exit code
-		if exitError, ok := err.(*exec.ExitError); ok {
-			waitStatus = exitError.Sys().(syscall.WaitStatus)
-			code = waitStatus.ExitStatus()
-		}
-	} else {
-		// Command was successful
-		waitStatus = cmd.ProcessState.Sys().(syscall.WaitStatus)
-		code = waitStatus.ExitStatus()
-	}
-
-	output = string(outputBytes)
-	self.Conf.Log.Println(output, err, code)
-	return
 }
 
 func (self SystemD) IsAnInteractiveSession() (bool, error) {

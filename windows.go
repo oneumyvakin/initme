@@ -5,8 +5,6 @@ package initme
 import (
 	"errors"
 	"fmt"
-	"os/exec"
-	"syscall"
 	"time"
 
 	"golang.org/x/sys/windows/svc"
@@ -32,27 +30,27 @@ func (self WindowsService) Register() (output string, err error, code int) {
 	if err != nil {
 		return
 	}
-	return self.execute(args...)
+	return execute(self.Conf.Log, "sc.exe", args...)
 }
 
 func (self WindowsService) Start() (output string, err error, code int) {
-	return self.execute("start", self.Conf.Name)
+	return execute(self.Conf.Log, "sc.exe", "start", self.Conf.Name)
 }
 
 func (self WindowsService) Stop() (output string, err error, code int) {
-	return self.execute("stop", self.Conf.Name)
+	return execute(self.Conf.Log, "sc.exe", "stop", self.Conf.Name)
 }
 
 func (self WindowsService) Status() (output string, err error, code int) {
-	return self.execute("query", self.Conf.Name)
+	return execute(self.Conf.Log, "sc.exe", "query", self.Conf.Name)
 }
 
 func (self WindowsService) Disable() (output string, err error, code int) {
-	return self.execute("config", self.Conf.Name, "start=", "disabled")
+	return execute(self.Conf.Log, "sc.exe", "config", self.Conf.Name, "start=", "disabled")
 }
 
 func (self WindowsService) Delete() (output string, err error, code int) {
-	return self.execute("delete", self.Conf.Name)
+	return execute(self.Conf.Log, "sc.exe", "delete", self.Conf.Name)
 }
 
 // https://support.microsoft.com/en-us/kb/251192
@@ -108,29 +106,6 @@ func (self WindowsService) buildScArgs(init ...string) (args []string, err error
 	return
 }
 
-func (self WindowsService) execute(args ...string) (output string, err error, code int) {
-	self.Conf.Log.Print("sc.exe ")
-	self.Conf.Log.Println(args)
-
-	cmd := exec.Command("sc.exe", args...)
-	var waitStatus syscall.WaitStatus
-	var outputBytes []byte
-	if outputBytes, err = cmd.CombinedOutput(); err != nil {
-		// Did the command fail because of an unsuccessful exit code
-		if exitError, ok := err.(*exec.ExitError); ok {
-			waitStatus = exitError.Sys().(syscall.WaitStatus)
-			code = waitStatus.ExitStatus()
-		}
-	} else {
-		// Command was successful
-		waitStatus = cmd.ProcessState.Sys().(syscall.WaitStatus)
-		code = waitStatus.ExitStatus()
-	}
-
-	output = string(outputBytes)
-	self.Conf.Log.Println(output, err, code)
-	return
-}
 
 func (self WindowsService) IsAnInteractiveSession() (bool, error) {
 	return svc.IsAnInteractiveSession()

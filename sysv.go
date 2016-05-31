@@ -8,10 +8,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
-	"syscall"
 	"text/template"
 )
 
@@ -144,15 +142,15 @@ func (self SysV) Enable() (output string, err error, code int) {
 }
 
 func (self SysV) Start() (output string, err error, code int) {
-	return self.execute(path.Join(sysVstoragePath, self.Conf.Name), "start")
+	return execute(self.Conf.Log, path.Join(sysVstoragePath, self.Conf.Name), "start")
 }
 
 func (self SysV) Stop() (output string, err error, code int) {
-	return self.execute(path.Join(sysVstoragePath, self.Conf.Name), "stop")
+	return execute(self.Conf.Log, path.Join(sysVstoragePath, self.Conf.Name), "stop")
 }
 
 func (self SysV) Status() (output string, err error, code int) {
-	return self.execute(path.Join(sysVstoragePath, self.Conf.Name), "status")
+	return execute(self.Conf.Log, path.Join(sysVstoragePath, self.Conf.Name), "status")
 }
 
 func (self SysV) Disable() (output string, err error, code int) {
@@ -173,11 +171,11 @@ func (self SysV) Run() {
 
 func (self SysV) initier(command string) (output string, err error, code int) {
 	var ctl string
-	output, err, code = self.execute("which", "update-rc.d")
+	output, err, code = execute(self.Conf.Log, "which", "update-rc.d")
 	if err == nil {
 		ctl = "update-rc.d"
 	}
-	output, err, code = self.execute("which", "chkconfig")
+	output, err, code = execute(self.Conf.Log, "which", "chkconfig")
 	if err == nil {
 		ctl = "chkconfig"
 	}
@@ -203,31 +201,7 @@ func (self SysV) initier(command string) (output string, err error, code int) {
 
 	args := strings.Split(cmdSet[ctl][command], " ")
 
-	return self.execute(ctl, args...)
-}
-
-func (self SysV) execute(command string, args ...string) (output string, err error, code int) {
-	self.Conf.Log.Printf("%s %s", command, args)
-
-	cmd := exec.Command(command, args...)
-	var waitStatus syscall.WaitStatus
-	var outputBytes []byte
-	if outputBytes, err = cmd.CombinedOutput(); err != nil {
-		// Did the command fail because of an unsuccessful exit code
-		if exitError, ok := err.(*exec.ExitError); ok {
-			waitStatus = exitError.Sys().(syscall.WaitStatus)
-			code = waitStatus.ExitStatus()
-		}
-	} else {
-		// Command was successful
-		waitStatus = cmd.ProcessState.Sys().(syscall.WaitStatus)
-		code = waitStatus.ExitStatus()
-	}
-
-	output = string(outputBytes)
-
-	self.Conf.Log.Println("output: ", output, "err: ", err, "code: ", code)
-	return
+	return execute(self.Conf.Log, ctl, args...)
 }
 
 func (self SysV) createServiceFile() (err error) {

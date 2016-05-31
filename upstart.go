@@ -8,9 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
-	"syscall"
 	"text/template"
 )
 
@@ -59,19 +57,19 @@ func (self Upstart) Enable() (output string, err error, code int) {
     if _, err := os.Stat(path.Join(upstartStoragePath, self.Conf.Name + ".disabled")); !os.IsNotExist(err) {
 		err = os.Rename(self.Conf.Name + ".disabled", self.Conf.Name + ".conf")
 	}
-	return self.execute("initctl", "reload-configuration")
+	return execute(self.Conf.Log, "initctl", "reload-configuration")
 }
 
 func (self Upstart) Start() (output string, err error, code int) {
-	return self.execute("initctl", "start", self.Conf.Name)
+	return execute(self.Conf.Log, "initctl", "start", self.Conf.Name)
 }
 
 func (self Upstart) Stop() (output string, err error, code int) {
-	return self.execute("initctl", "stop", self.Conf.Name)
+	return execute(self.Conf.Log, "initctl", "stop", self.Conf.Name)
 }
 
 func (self Upstart) Status() (output string, err error, code int) {
-	return self.execute("initctl", "status", self.Conf.Name)
+	return execute(self.Conf.Log, "initctl", "status", self.Conf.Name)
 }
 
 func (self Upstart) Disable() (output string, err error, code int) {
@@ -83,7 +81,7 @@ func (self Upstart) Delete() (output string, err error, code int) {
 	os.Remove(path.Join(upstartStoragePath, self.Conf.Name + ".conf"))
     os.Remove(path.Join(upstartStoragePath, self.Conf.Name + ".disabled"))
 
-	return self.execute("initctl", "reload-configuration")
+	return execute(self.Conf.Log, "initctl", "reload-configuration")
 }
 
 func (self Upstart) Run() {
@@ -118,27 +116,4 @@ func (self Upstart) createUpstartFile() (err error) {
 	}
 
 	return nil
-}
-
-func (self Upstart) execute(command string, args ...string) (output string, err error, code int) {
-	self.Conf.Log.Printf("%s %s", command, args)
-
-	cmd := exec.Command(command, args...)
-	var waitStatus syscall.WaitStatus
-	var outputBytes []byte
-	if outputBytes, err = cmd.CombinedOutput(); err != nil {
-		// Did the command fail because of an unsuccessful exit code
-		if exitError, ok := err.(*exec.ExitError); ok {
-			waitStatus = exitError.Sys().(syscall.WaitStatus)
-			code = waitStatus.ExitStatus()
-		}
-	} else {
-		// Command was successful
-		waitStatus = cmd.ProcessState.Sys().(syscall.WaitStatus)
-		code = waitStatus.ExitStatus()
-	}
-
-	output = string(outputBytes)
-	self.Conf.Log.Println(output, err, code)
-	return
 }
