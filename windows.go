@@ -106,7 +106,6 @@ func (self WindowsService) buildScArgs(init ...string) (args []string, err error
 	return
 }
 
-
 func (self WindowsService) IsAnInteractiveSession() (bool, error) {
 	return svc.IsAnInteractiveSession()
 }

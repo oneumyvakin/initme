@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-    "syscall"
+	"syscall"
 )
 
 const (
@@ -66,8 +66,8 @@ type Config struct {
 	ExecStart       string
 	WantedBy        string
 
-    // Upstart specific
-    Exec        string
+	// Upstart specific
+	Exec string
 
 	// Windows Specific
 	Job         func()
@@ -126,4 +126,3 @@ func execute(log *log.Logger, command string, args ...string) (output string, er
 	log.Println("output: ", output, "err: ", err, "code: ", code)
 	return
 }
-

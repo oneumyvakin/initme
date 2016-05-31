@@ -54,8 +54,8 @@ func (self Upstart) Register() (output string, err error, code int) {
 }
 
 func (self Upstart) Enable() (output string, err error, code int) {
-    if _, err := os.Stat(path.Join(upstartStoragePath, self.Conf.Name + ".disabled")); !os.IsNotExist(err) {
-		err = os.Rename(self.Conf.Name + ".disabled", self.Conf.Name + ".conf")
+	if _, err := os.Stat(path.Join(upstartStoragePath, self.Conf.Name+".disabled")); !os.IsNotExist(err) {
+		err = os.Rename(self.Conf.Name+".disabled", self.Conf.Name+".conf")
 	}
 	return execute(self.Conf.Log, "initctl", "reload-configuration")
 }
@@ -73,13 +73,13 @@ func (self Upstart) Status() (output string, err error, code int) {
 }
 
 func (self Upstart) Disable() (output string, err error, code int) {
-    err = os.Rename(self.Conf.Name + ".conf", self.Conf.Name + ".disabled")
+	err = os.Rename(self.Conf.Name+".conf", self.Conf.Name+".disabled")
 	return
 }
 
 func (self Upstart) Delete() (output string, err error, code int) {
-	os.Remove(path.Join(upstartStoragePath, self.Conf.Name + ".conf"))
-    os.Remove(path.Join(upstartStoragePath, self.Conf.Name + ".disabled"))
+	os.Remove(path.Join(upstartStoragePath, self.Conf.Name+".conf"))
+	os.Remove(path.Join(upstartStoragePath, self.Conf.Name+".disabled"))
 
 	return execute(self.Conf.Log, "initctl", "reload-configuration")
 }
@@ -108,7 +108,7 @@ func (self Upstart) createUpstartFile() (err error) {
 	}
 	unitString.Flush()
 
-	unitPath := path.Join(upstartStoragePath, self.Conf.Name + ".conf")
+	unitPath := path.Join(upstartStoragePath, self.Conf.Name+".conf")
 
 	err = ioutil.WriteFile(unitPath, b.Bytes(), os.ModePerm)
 	if err != nil {
