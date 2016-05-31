@@ -3,9 +3,17 @@ Register your Go program as service for SysV, SystemD, Upstart and Windows
 
 You may found interesting this repository: https://github.com/kardianos/service
 
+```
+// SomeService here it's your own struct
+
+func (self SomeService) Start() (err error) {
+	// all work doing here
+}
+```
+
 How to install service:
 ```
-func (self Service) doInstall() (err error) {
+func (self SomeService) doInstall() (err error) {
 	self.log.Println("Do Install on")
 
 	var conf initme.Config
@@ -27,7 +35,7 @@ func (self Service) doInstall() (err error) {
 		self.log.Println("sysv")
 		conf = initme.Config{
 			Name:        self.Name,
-			Description: "Plesk Slack notification service",
+			Description: self.Description,
 			Provides:    self.Name,
 			Required:    "$local_fs $remote_fs $network $syslog",
 			Command:     self.binaryPath,
@@ -39,7 +47,7 @@ func (self Service) doInstall() (err error) {
 		self.log.Println("upstart")
 		conf = initme.Config{
 			Name:        self.Name,
-			Description: "Plesk Slack notification service",
+			Description: self.Description,
 			Exec:        self.binaryPath,
 			Log:         self.log,
 		}
@@ -48,7 +56,7 @@ func (self Service) doInstall() (err error) {
 		self.log.Println("systemd")
 		conf = initme.Config{
 			Name:            self.Name,
-			Description:     "My some test",
+			Description:     self.Description,
 			TimeoutStartSec: "1",
 			ExecStart:       self.binaryPath,
 			WantedBy:        "multi-user.target",
@@ -66,7 +74,7 @@ func (self Service) doInstall() (err error) {
 How to uninstall service:
 
 ```
-func (self Service) doUninstall() (err error) {
+func (self SomeService) doUninstall() (err error) {
 	self.log.Println("Do Uninstall on")
 
 	conf := initme.Config{
@@ -82,4 +90,51 @@ func (self Service) doUninstall() (err error) {
 
 	return
 }
+```
+
+Your main():
+```
+func main() {
+	someService := SomeService{
+		Name: "MyService",
+	}
+	isInstall, isUninstall, config := getOpts()
+	someService.SetConfig(config)
+
+	if isInstall {
+		someService.doInstall()
+		return
+	}
+	if isUninstall {
+		someService.doUninstall()
+		return
+	}
+
+	if runtime.GOOS == "windows" { // this case for Windows non-interactive(as service) mode
+		conf := initme.Config{
+			Name:    someService.Name,
+			BinPath: "\"" + someService.binaryPath + "\" --config \"" + someService.configPath + "\"",
+			Job:     someService.Start, // all work doing here
+			Log:     someService.log,
+		}
+
+		s := initme.New(conf)
+
+		isIntSess, err := s.IsAnInteractiveSession()
+		if err != nil {
+			log.Fatalf("failed to determine if we are running in an interactive session: %v", err)
+		}
+
+		if !isIntSess {
+
+			s.Run()
+
+			return
+		}
+
+	}
+
+	someService.Start() // this case for Linux and Windows interactive(!) mode, all work doing here
+}
+
 ```
